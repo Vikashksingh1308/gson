@@ -189,7 +189,7 @@ public final class LegacyProtoTypeAdapterFactoryTest {
   }
 
   private static void rewriteJsonObject(JsonObject json) {
-    // The RTAF JSON includes a field `fooMemoizedSerializedSize` for every `foo` that is a a
+    // The RTAF JSON includes a field `fooMemoizedSerializedSize` for every `foo` that is a
     // repeated non-message field. Not including it means that it gets its default value of -1,
     // which implies that it will be computed on demand. We verify `getSerializedSize()` in
     // `legacyCompatToRtaf`, which would fail if the absence of `fooMemoizedSerializedSize` were a
@@ -199,6 +199,7 @@ public final class LegacyProtoTypeAdapterFactoryTest {
     Pattern pattern =
         Pattern.compile(
             "^(memoized.?(Hash.?Code|Is.?Initialized|Size))|unknown.?Fields"
+                + "|bit.?[fF]ield.*"
                 + "|.*Memoized.?Serialized.?Size$",
             Pattern.CASE_INSENSITIVE);
     var keysToRemove =
@@ -428,6 +429,16 @@ public final class LegacyProtoTypeAdapterFactoryTest {
   public void deserializeNull() {
     assertThat(RTAF_GSON.fromJson("null", TestAllTypes.class)).isNull();
     assertThat(GSON_WITH_LEGACY_ADAPTER.fromJson("null", TestAllTypes.class)).isNull();
+  }
+
+  @Test
+  public void deserialize_oversizedBitFieldIndex_doesNotCauseOom() {
+    // A crafted JSON with a large bitFieldXXX_ index (>4 digits) previously caused
+    // BigInteger.shiftLeft() to allocate hundreds of MB. The fix tightens BIT_FIELD_PATTERN
+    // to \d{1,4}, so indices beyond 9999 no longer match and are treated as unknown fields.
+    String json = "{\"bitField67108863_\": 1, \"optionalInt32_\": 42}";
+    TestAllTypes result = GSON_WITH_LEGACY_ADAPTER.fromJson(json, TestAllTypes.class);
+    assertThat(result.getOptionalInt32()).isEqualTo(42);
   }
 
   private static Gson applyFieldNamingPolicy(Gson gson, FieldNamingPolicy fieldNamingPolicy) {

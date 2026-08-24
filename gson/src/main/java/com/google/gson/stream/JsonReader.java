@@ -376,7 +376,7 @@ public class JsonReader implements Closeable {
    *       to the following departures from RFC 8259:
    *       <ul>
    *         <li>Streams that start with the <a href="#nonexecuteprefix">non-execute prefix</a>,
-   *             {@code ")]}'\n"}
+   *             <code>")]}'\n"</code>
    *         <li>Streams that include multiple top-level values. With legacy strict or strict
    *             parsing, each stream must contain exactly one top-level value.
    *         <li>Numbers may be {@link Double#isNaN() NaNs} or {@link Double#isInfinite()
@@ -853,7 +853,7 @@ public class JsonReader implements Closeable {
             value = -(c - '0');
             last = NUMBER_CHAR_DIGIT;
           } else if (last == NUMBER_CHAR_DIGIT) {
-            if (value == 0) {
+            if (fitsInLong && value == 0) {
               return PEEKED_NONE; // Leading '0' prefix is not allowed (since it could be octal).
             }
             long newValue = value * 10 - (c - '0');
@@ -1613,7 +1613,7 @@ public class JsonReader implements Closeable {
         pos = p;
         /*
          * Skip a # hash end-of-line comment. The JSON RFC doesn't
-         * specify this behaviour, but it's required to parse
+         * specify this behavior, but it's required to parse
          * existing documents. See http://b/2571423.
          */
         checkLenient();
@@ -1880,10 +1880,8 @@ public class JsonReader implements Closeable {
   }
 
   private void validateAscii(String s) throws MalformedJsonException {
-    for (int i = 0; i < s.length(); i++) {
-      if (s.charAt(i) > 127) {
-        throw syntaxError("String contains non-ASCII characters: " + s);
-      }
+    if (!JsonTreeReader.isAllAscii(s)) {
+      throw syntaxError("String contains non-ASCII characters: " + s);
     }
   }
 
